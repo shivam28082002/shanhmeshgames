@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.utils import timezone
+import math
 
 
 
@@ -76,12 +78,32 @@ class Task(models.Model):
     start_time = models.DateTimeField(blank=True, null=True)
     end_time = models.DateTimeField(blank=True, null=True)
 
+    def is_available_now(self):
+        now = timezone.now()
+        if not self.is_active:
+            return False
+        if self.start_time and now < self.start_time:
+            return False
+        if self.end_time and now > self.end_time:
+            return False
+        return True
+
+    def __str__(self):
+        return self.name
+
 
 class UserTask(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(blank=True, null=True)
+
+    @staticmethod
+    def has_completed(user, task):
+        return UserTask.objects.filter(user=user, task=task, completed=True).exists()
+
+    def __str__(self):
+        return f"{self.user.username} - {self.task.name} - {'Done' if self.completed else 'Pending'}"
 
 
 # 4. Mini-Games
@@ -118,6 +140,7 @@ class UserAirdropEntry(models.Model):
 class Character(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
+    image_character = models.ImageField(upload_to='uploads/', null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -127,7 +150,7 @@ class Skin(models.Model):
     name = models.CharField(max_length=100)
     is_unlocked = models.BooleanField(default=False)
     price = models.DecimalField(max_digits=6, decimal_places=2) 
-    image_url = models.URLField(null=True, blank=True) 
+    image_url = models.ImageField(upload_to='uploads/', null=True, blank=True)
 
     def __str__(self):
         return f'{self.name} for {self.character.name}'
@@ -163,6 +186,17 @@ class UserCharater(models.Model):
         return f"{self.user.username} - {self.get_character_display()}"
 
 
+
+class DailyCipher(models.Model):
+    # charter = models.ForeignKey(UserCharater)
+    date = models.DateField(unique=True)
+    cipher = models.CharField(max_length=20)
+
+    def __str__(self):
+        return f"{self.date} - {self.cipher}"
+
+
+
 class UserCharater(models.Model):
     CHARACTER_CHOICES = [
         ('fourse_aladin', 'Fourse Aladin'),
@@ -171,21 +205,77 @@ class UserCharater(models.Model):
         ('arshine', 'Arshine'),
     ]
 
-    # user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     character = models.CharField(max_length=20, choices=CHARACTER_CHOICES)
+    coins = models.PositiveIntegerField(blank=True, null=True, default=0)
     level = models.IntegerField(
-        validators=[
-            MinValueValidator(1),
-            MaxValueValidator(11)
-        ],
+        validators=[MinValueValidator(1), MaxValueValidator(11)],
         default=1
     )
     engry = models.IntegerField(
-        validators=[
-            MinValueValidator(1),
-            MaxValueValidator(1000)
-        ],
-        default=1
+        validators=[MinValueValidator(1), MaxValueValidator(1000)],
+        default=1000
     )
+    last_energy_update = models.DateTimeField(default=timezone.now)
+    # claimed_ciphers = models.ManyToManyField('DailyCipher', blank=True)
+
+    def update_energy(self):
+        now = timezone.now()
+        minutes_passed = int((now - self.last_energy_update).total_seconds() // 60)
+
+        if minutes_passed > 0 and self.engry < 1000:
+            new_energy = min(self.engry + minutes_passed, 1000)
+            self.engry = new_energy
+            self.last_energy_update = now
+            self.save()
+
     def __str__(self):
         return f"{self.user.username} - {self.get_character_display()} (Level {self.level})"
+
+    
+
+class Settings(models.Model):
+    # user = models.ForeignKey(User, on_delete=models.CASCADE)
+    vibration = models.BooleanField(default=True)
+    sound = models.BooleanField(default=True)
+    music = models.BooleanField(default=True)
+    effects = models.BooleanField(default=True)
+    rotate = models.BooleanField(default=True)
+
+
+
+class ChatMessage(models.Model):
+    SENDER_CHOICES = [
+        ('user', 'User'),
+        ('bot', 'Bot'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
+    message = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.sender}: {self.message[:30]}"
+
+
+class UserEarnings(models.Model):
+    # user = models.OneToOneField(User, on_delete=models.CASCADE)
+    profit_per_hour = models.IntegerField(default=100) 
+    last_claimed = models.DateTimeField(default=timezone.now)
+    total_collected = models.IntegerField(default=0)
+
+    def calculate_pending_profit(self):
+        now = timezone.now()
+        hours_passed = (now - self.last_claimed).total_seconds() / 3600
+        return math.floor(hours_passed * self.profit_per_hour)
+
+    def claim_profit(self):
+        profit = self.calculate_pending_profit()
+        self.total_collected += profit
+        self.last_claimed = timezone.now()
+        self.save()
+        return profit
+    
+
+

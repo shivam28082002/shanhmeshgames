@@ -1,8 +1,14 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.utils.timezone import now
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
+from django.utils import timezone
+from django.db.models import Q
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
+
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,9 +17,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.authtoken.models import Token  
 
-from .serializers import RegisterSerializer, CharacterSerializer, UserCharaterSerializer
+from .serializers import (RegisterSerializer, CharacterSerializer, 
+                          UserCharaterSerializer, TaskSerializer,UserCharaterSerializer,
+                          SettingsSerializer)
 from .utils import verify_telegram_auth  
 from . import models
+import random
+import datetime
+
 
 
 
@@ -37,8 +48,7 @@ def profile_view(request):
     })
     
     
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
+
     
 @csrf_exempt
 @api_view(['POST'])
@@ -118,3 +128,174 @@ class UserCharaterCreateAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+def generate_solvable_board():
+    while True:
+        board = list(range(1, 9)) + [None]
+        random.shuffle(board)
+        if is_solvable(board):
+            return [board[i:i+3] for i in range(0, 9, 3)]
+
+def is_solvable(tiles):
+    tiles = [tile for tile in tiles if tile is not None]
+    inversions = 0
+    for i in range(len(tiles)):
+        for j in range(i + 1, len(tiles)):
+            if tiles[i] > tiles[j]:
+                inversions += 1
+    return inversions % 2 == 0
+
+def is_solved(board):
+    expected = list(range(1, 9)) + [None]
+    flat = [cell for row in board for cell in row]
+    return flat == expected
+
+def index(request):
+    board = request.session.get('board')
+    if not board:
+        board = generate_solvable_board()
+        request.session['board'] = board
+
+    win = is_solved(board)
+    return render(request, 'board.html', {'board': board, 'win': win})
+
+def move_tile(request, row, col):
+    board = request.session.get('board')
+    if not board:
+        return redirect('index')
+
+    row, col = int(row), int(col)
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+    for dr, dc in directions:
+        nr, nc = row + dr, col + dc
+        if 0 <= nr < 3 and 0 <= nc < 3 and board[nr][nc] is None:
+            board[nr][nc], board[row][col] = board[row][col], None
+            break
+
+    request.session['board'] = board
+    return redirect('index')
+
+
+@csrf_exempt
+def reset_board(request):
+    if request.method == 'POST':
+        request.session['board'] = generate_solvable_board()
+    return redirect('index')
+
+
+class DailyTaskListView(APIView):
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        now = timezone.now()
+        
+        tasks = models.Task.objects.filter(is_active=True).filter(
+            Q(start_time__lte=now) | Q(start_time__isnull=True),
+            Q(end_time__gte=now) | Q(end_time__isnull=True)
+        )
+
+        serializer = TaskSerializer(tasks, many=True, context={'request': request})
+        return Response(serializer.data)
+
+
+class CompleteTaskView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, task_id):
+        user = request.user
+        try:
+            task = models.Task.objects.get(id=task_id)
+            now = timezone.now()
+
+            if not task.is_available_now():
+                return Response({'error': 'Task is not currently available.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if models.UserTask.objects.filter(user=user, task=task, completed=True).exists():
+                return Response({'error': 'Task already completed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            models.UserTask.objects.create(user=user, task=task, completed=True, completed_at=now)
+
+            wallet, _ = models.TokenWallet.objects.get_or_create(user=user)
+            wallet.real_tokens += task.reward
+            wallet.save()
+
+            return Response({'success': True, 'reward': task.reward})
+
+        except models.Task.DoesNotExist:
+            return Response({'error': 'Task not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+
+class UserCharacterListCreateView(APIView):
+    def get(self, request):
+        characters = models.UserCharater.objects.all()
+        serializer = UserCharaterSerializer(characters, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request, pk):
+        try:
+            character = models.UserCharater.objects.get(id=pk)
+            amount = request.data.get("amount", 0)
+            character.coins = (character.coins or 0) + int(amount)
+            character.engry = (character.engry) - int(amount)
+            character.save()
+            return Response(UserCharaterSerializer(character).data, status=status.HTTP_200_OK)
+        except models.UserCharater.DoesNotExist:
+            return Response({"error": "Character not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+class SettingsAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        setting = models.Settings.objects.get(id=1)
+        serializer = SettingsSerializer(setting)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        serializer = SettingsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, *args, **kwargs):
+        setting = get_object_or_404(models.Settings, id=1) 
+        serializer = SettingsSerializer(setting, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+class ClaimProfitView(APIView):
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        earnings = models.UserEarnings.objects.get(id=1)
+        pending = earnings.calculate_pending_profit()
+        return Response({"pending_profit": pending})
+
+    def post(self, request):
+        earnings = models.UserEarnings.objects.get(user=1)
+        claimed = earnings.claim_profit()
+        return Response({"claimed": claimed, "total_collected": earnings.total_collected})
+    
+
+@api_view(["POST"])
+def claim_cipher(request, pk):
+    # breakpoint()
+    player = models.UserCharater.objects.get(id=2)
+    cipher_input = request.data.get("cipher", "").strip().upper()
+    today = timezone.now().date()
+
+    DAILY_CIPHERS = {
+        datetime.date(2025, 5, 17): "",
+    }
+
+    correct_cipher = 'TAP'
+    if correct_cipher and cipher_input == correct_cipher:
+        player.coins += 1000
+        player.save()
+        return Response({"success": True, "message": "Cipher correct! 1000 coins added.", "new_coins": player.coins})
+    return Response({"success": False, "message": "Incorrect cipher."})

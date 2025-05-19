@@ -1,6 +1,11 @@
 from django.urls import path
-from .views import RegisterView, profile_view,telegram_login_page, bot_login, CharacterListView
+from .views import (RegisterView, profile_view,telegram_login_page, bot_login, claim_cipher,
+                    CharacterListView, DailyTaskListView, CompleteTaskView, UserCharacterListCreateView,
+                    SettingsAPIView)
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from . import views
+from .bot_views import SendTelegramMessageView,MessageHistoryView
+
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -10,4 +15,17 @@ urlpatterns = [
     path('telegram_login_page/', telegram_login_page, name='telegram_login_page'),
     path('bot_login/', bot_login, name='bot_login'),
     path('characters/', CharacterListView.as_view(), name='character_list'),
+    path('', views.index, name='index'),
+    path('move/<int:row>/<int:col>/', views.move_tile, name='move'),
+    path('reset/', views.reset_board, name='reset'),
+    path('tasks/', DailyTaskListView.as_view(), name='daily-tasks'),
+    path('tasks/<int:task_id>/complete/', CompleteTaskView.as_view(), name='complete-task'),
+    path('user_characters/', UserCharacterListCreateView.as_view(), name='character-list-create'),
+    path('user_characters/<int:pk>/increase_coins/', UserCharacterListCreateView.as_view()),
+    path('settings/', SettingsAPIView.as_view(), name='settings-api'),
+    path("send-message/", SendTelegramMessageView.as_view(), name="send-message"),
+    path("chat-history/<int:user_id>/", MessageHistoryView.as_view(), name="chat-history"),
+    path('profit/', views.ClaimProfitView.as_view(), name='profit'),
+     path('claim-cipher/<int:pk>/', claim_cipher, name='claim_cipher'),
+    
 ]

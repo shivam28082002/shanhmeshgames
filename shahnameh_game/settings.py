@@ -14,6 +14,7 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+from celery.schedules import crontab
 
 
 # Quick-start development settings - unsuitable for production
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'core',
+    'celery',
 ]
 
 MIDDLEWARE = [
@@ -134,6 +136,21 @@ USE_I18N = True
 USE_TZ = True
 
 
+
+
+CELERY_BEAT_SCHEDULE = {
+    'regenerate-energy-every-minute': {
+        'task': 'core.tasks.regenerate_energy',
+        'schedule': crontab(minute='*'),
+    },
+}
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -145,3 +162,6 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS  = True
+
+MEDIA_URL = '/uploads/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads')

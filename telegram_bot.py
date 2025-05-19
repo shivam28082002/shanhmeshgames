@@ -41,7 +41,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Login failed.")
 
 if __name__ == "__main__":
-    app = ApplicationBuilder().token("7585286219:AAGltBgrhw7MZy_9U3gDyjifCJ7D7LPewAk").build()
+    app = ApplicationBuilder().token("7671321115:AAG9Y1HLn1o_S2Dz6dF8e-ro238dU8KFXdQ").build()
     app.add_handler(CommandHandler("start", start))
     print("Bot is running...")
     app.run_polling()

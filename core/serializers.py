@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Character, Skin, Purchase,UserCharater
+from .models import Character, Skin, Purchase,UserCharater, Task , UserTask, UserCharater, Settings
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -48,10 +48,36 @@ class CharacterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Character
-        fields = ['id', 'name', 'description', 'skins']
+        fields = ['id', 'name', 'description', 'image_character', 'skins']
 
 
 class UserCharaterSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserCharater
         fields = ['id', 'character', 'level', 'engry']
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    completed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Task
+        fields = ['id', 'name', 'description', 'type', 'reward', 'url', 'completed']
+
+    def get_completed(self, obj):
+        user = self.context.get('request').user
+        return UserTask.objects.filter(user=user, task=obj, completed=True).exists()
+    
+
+class UserCharaterSerializer(serializers.ModelSerializer):
+    character_display = serializers.CharField(source='get_character_display', read_only=True)
+
+    class Meta:
+        model = UserCharater
+        fields = ['id', 'character', 'character_display', 'coins', 'level', 'engry']
+
+
+class SettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Settings
+        fields = '__all__'
