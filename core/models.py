@@ -217,6 +217,7 @@ class UserCharater(models.Model):
         default=1000
     )
     last_energy_update = models.DateTimeField(default=timezone.now)
+    last_mining_time = models.DateTimeField(null=True, blank=True)
     # claimed_ciphers = models.ManyToManyField('DailyCipher', blank=True)
 
     def update_energy(self):

@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Character, Skin, Purchase,UserCharater, Task , UserTask, UserCharater, Settings
+from .models import Character, Skin, Purchase,UserCharater, Task , UserTask, UserCharater, Settings, MiningCard
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -81,3 +81,10 @@ class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Settings
         fields = '__all__'
+
+
+
+class MiningCardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MiningCard
+        fields = ['id', 'category', 'title', 'value', 'is_active']

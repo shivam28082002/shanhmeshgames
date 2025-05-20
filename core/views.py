@@ -19,7 +19,7 @@ from rest_framework.authtoken.models import Token
 
 from .serializers import (RegisterSerializer, CharacterSerializer, 
                           UserCharaterSerializer, TaskSerializer,UserCharaterSerializer,
-                          SettingsSerializer)
+                          SettingsSerializer,MiningCardSerializer)
 from .utils import verify_telegram_auth  
 from . import models
 import random
@@ -299,3 +299,67 @@ def claim_cipher(request, pk):
         player.save()
         return Response({"success": True, "message": "Cipher correct! 1000 coins added.", "new_coins": player.coins})
     return Response({"success": False, "message": "Incorrect cipher."})
+
+
+
+class MiningActionView(APIView):
+    MINING_ENERGY_COST = 20 
+    COOLDOWN_SECONDS = 30    
+
+    def post(self, request, pk):
+        player =  models.UserCharater.objects.get(id=2)
+        card_id = request.data.get("card_id")
+
+        if not card_id:
+            return Response({"success": False, "message": "Mining card ID required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        card = get_object_or_404(models.MiningCard, pk=card_id, is_active=True)
+        player.update_energy()
+
+        now = timezone.now()
+        last_mining = getattr(player, 'last_mining_time', None)
+        if last_mining and (now - last_mining).total_seconds() < self.COOLDOWN_SECONDS:
+            remaining = self.COOLDOWN_SECONDS - (now - last_mining).total_seconds()
+            return Response({"success": False, "message": f"Mining cooldown active. Try again in {int(remaining)} seconds."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        if player.engry < self.MINING_ENERGY_COST:
+            return Response({"success": False, "message": "Not enough energy to mine."}, status=status.HTTP_400_BAD_REQUEST)
+
+        player.engry -= self.MINING_ENERGY_COST
+
+        base_coins = int(card.value * player.level * random.uniform(0.8, 1.2))
+        if random.random() < 0.20:
+            coins_gained = base_coins * 2
+            bonus = True
+        else:
+            coins_gained = base_coins
+            bonus = False
+
+        player.coins += coins_gained
+        player.last_energy_update = now
+        player.last_mining_time = now  
+        player.save()
+
+        leveled_up = False
+        if player.coins >= player.level * 10000 and player.level < 13:  
+            player.level += 1
+            player.save()
+            leveled_up = True
+
+        return Response({
+            "success": True,
+            "message": f"Mining successful! You gained {coins_gained} coins{' (bonus!)' if bonus else ''}.",
+            "new_coins": player.coins,
+            "remaining_energy": player.engry,
+            "level": player.level,
+            "leveled_up": leveled_up,
+            "cooldown_seconds": self.COOLDOWN_SECONDS
+        })
+    
+
+
+class MiningView(APIView):
+    def get(self, request, *args, **kwargs):
+        mining_cards = models.MiningCard.objects.filter(is_active=True)
+        serializer = MiningCardSerializer(mining_cards, many=True)
+        return Response(serializer.data)

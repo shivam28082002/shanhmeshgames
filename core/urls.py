@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (RegisterView, profile_view,telegram_login_page, bot_login, claim_cipher,
                     CharacterListView, DailyTaskListView, CompleteTaskView, UserCharacterListCreateView,
-                    SettingsAPIView)
+                    SettingsAPIView, MiningActionView, MiningView)
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
 from .bot_views import SendTelegramMessageView,MessageHistoryView
@@ -26,6 +26,8 @@ urlpatterns = [
     path("send-message/", SendTelegramMessageView.as_view(), name="send-message"),
     path("chat-history/<int:user_id>/", MessageHistoryView.as_view(), name="chat-history"),
     path('profit/', views.ClaimProfitView.as_view(), name='profit'),
-     path('claim-cipher/<int:pk>/', claim_cipher, name='claim_cipher'),
+    path('claim-cipher/<int:pk>/', claim_cipher, name='claim_cipher'),
+    path('mining/', MiningView.as_view(), name='mining-list'),  # GET all mining cards
+    path('mining/<int:pk>/', MiningActionView.as_view(), name='mining'), 
     
 ]
