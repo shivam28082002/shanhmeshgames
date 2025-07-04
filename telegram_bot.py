@@ -3,9 +3,12 @@ import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-API_BASE_URL = "http://127.0.0.1:8000/api"
+API_BASE_URL = "https://api.shahnamehgamefi.ir/api"
 
 user_tokens = {}
+
+
+api_key = '39211ffac43f544f1e333bc532cb4c45b886f7a3'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = str(update.effective_user.id)

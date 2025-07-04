@@ -16,10 +16,12 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.authtoken.models import Token  
+import requests
+
 
 from .serializers import (RegisterSerializer, CharacterSerializer, 
                           UserCharaterSerializer, TaskSerializer,UserCharaterSerializer,
-                          SettingsSerializer,MiningCardSerializer)
+                          SettingsSerializer,MiningCardSerializer,HafizReadingSerializer)
 from .utils import verify_telegram_auth  
 from . import models
 import random
@@ -306,7 +308,7 @@ class MiningActionView(APIView):
     MINING_ENERGY_COST = 20 
     COOLDOWN_SECONDS = 30    
 
-    def post(self, request, pk):
+    def post(self, request):
         player =  models.UserCharater.objects.get(id=2)
         card_id = request.data.get("card_id")
 
@@ -363,3 +365,217 @@ class MiningView(APIView):
         mining_cards = models.MiningCard.objects.filter(is_active=True)
         serializer = MiningCardSerializer(mining_cards, many=True)
         return Response(serializer.data)
+
+
+
+
+
+
+def get_crypto_data(request):
+    api_key = "39211ffac43f544f1e333bc532cb4c45b886f7a3"  
+    url = "https://your-crypto-api.com/v1/prices" 
+    headers = {
+        "Authorization": f"Bearer {api_key}", 
+        "Accept": "application/json"
+    }
+
+    params = {
+        "symbol": "BTC,ETH", 
+        "convert": "USD"
+    }
+
+    response = requests.get(url, headers=headers, params=params)
+
+    if response.status_code == 200:
+        return JsonResponse(response.json())
+    else:
+        return JsonResponse({"error": "Failed to fetch data", "status": response.status_code}, status=500)
+
+
+
+class DailyHafezTaskView(APIView):
+    def get(self, request):
+        try:
+            # breakpoint()
+            # user = 1
+            user = models.User.objects.get(id=1)
+            today = timezone.now().date()
+
+            try:
+                reading = models.HafizReading.objects.get(date_to_show=today)
+            except models.HafizReading.DoesNotExist:
+                return Response({"message": "No Hafez reading for today."}, status=404)
+
+            try:
+                task = models.Task.objects.get(type='read_hafez', is_active=True)
+            except models.Task.DoesNotExist:
+                return Response({"message": "No active reading task."}, status=404)
+
+            user_task, created = models.UserTask.objects.get_or_create(user=user, task=task)
+
+            return Response({
+                "task": {
+                    "name": task.name,
+                    "description": task.description,
+                    "reward": task.reward,
+                    "completed": user_task.completed
+                },
+                "reading": {
+                    "title": reading.title,
+                    "arabic_text": reading.arabic_text,
+                    "translation": reading.translation
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'failed': False, 'message': str(e)})    
+
+@api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+def complete_hafez_task(request):
+    user = models.User.objects.get(id=1)
+    try:
+        task = models.Task.objects.get(type='read_hafez', is_active=True)
+        task_reward = int(task.reward)
+    except models.Task.DoesNotExist:
+        return Response({"message": "Task not found"}, status=404)
+
+    user_task, created = models.UserTask.objects.get_or_create(user=user, task=task)
+
+    if user_task.completed:
+        return Response({"message": "Already completed"}, status=400)
+    
+    player =  models.UserCharater.objects.get(id=2)
+    player.coins += task_reward
+    player.save()
+
+    user_task.completed = True
+    user_task.completed_at = timezone.now()
+    user_task.save()
+    return Response({"message": "Task marked as complete", "reward": task.reward})
+
+
+
+
+class JoinTelegramTaskView(APIView):
+    # permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = models.User.objects.get(id=1)
+        try:
+            task = models.Task.objects.get(type='join_tg', is_active=True)
+        except models.Task.DoesNotExist:
+            return Response({"message": "No active Telegram task."}, status=404)
+
+        user_task, created = models.UserTask.objects.get_or_create(user=user, task=task)
+
+        if user_task.completed:
+            return Response({"message": "Already joined Telegram."}, status=400)
+
+        user_task.completed = True
+        user_task.completed_at = timezone.now()
+        user_task.save()
+
+        return Response({"message": "Telegram task completed!"})
+    
+
+class AllTasksStatusView(APIView):
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        now = timezone.now()
+        tasks = models.Task.objects.filter(is_active=True)
+        user = models.User.objects.get(id=1)
+
+        task_list = []
+        for task in tasks:
+            completed = models.UserTask.objects.filter(user=user, task=task, completed=True).exists()
+            task_data = {
+                "name": task.name,
+                "description": task.description,
+                "type": task.type,
+                "reward": task.reward,
+                "url": task.url,
+                "completed": completed,
+            }
+
+            if task.type == "read_hafez" and task.reading:
+                task_data["reading"] = {
+                    "title": task.reading.title,
+                    "arabic_text": task.reading.arabic_text,
+                    "translation": task.reading.translation,
+                }
+
+            task_list.append(task_data)
+
+        return Response({"tasks": task_list})
+
+
+class BootsEnegry(APIView):
+    def post(self, request):
+        try:
+            player = models.UserCharater.objects.get(id=2)
+
+            boots_price = request.data.get('coins')
+            if not boots_price:
+                return Response({"success": False, "error": "Coins value not provided"}, status=400)
+
+            boots_price = int(boots_price)
+
+            if boots_price == 1000:
+                if player.coins < 1000:
+                    return Response({"success": False, "error": "Not enough coins"}, status=400)
+
+                player.engry = 1000 
+                player.coins -= boots_price
+                player.save()
+
+                return Response({'success': True, 'energy': player.engry})
+            else:
+                return Response({"success": False, "error": "Invalid boots_price value"}, status=400)
+
+        except models.UserCharater.DoesNotExist:
+            return Response({"success": False, "error": "Character not found"}, status=404)
+        except Exception as e:
+            return Response({"success": False, "error": str(e)}, status=500)
+
+
+class CompleteWatchAdTaskView(APIView):
+    def post(self, request):
+        user = models.User.objects.get(id=1)
+        task = models.Task.objects.filter(type='watch_ad', is_active=True).first()
+        if not task:
+            return Response({'success': False, 'message': 'No ad task active'})
+
+        if models.UserTask.has_completed(user, task):
+            return Response({'success': False, 'message': 'Already completed'})
+
+        models.UserTask.objects.create(user=user, task=task, completed=True, completed_at=timezone.now())
+
+        user_character = models.UserCharater.objects.get(user=user)
+        user_character.coins += task.reward
+        user_character.save()
+
+        return Response({'success': True, 'reward': task.reward, 'coins': user_character.coins})
+
+
+class UnlockSkinView(APIView):
+
+
+    def post(self, request):
+        skin_id = request.data.get("skin_id")
+        user = request.user
+
+        try:
+            skin = models.Skin.objects.get(id=skin_id)
+            user_char = models.UserCharater.objects.get(id=2)
+            if skin.is_unlocked:
+                return Response({"success": False, "error": "Skin already unlocked."}, status=400)
+            if user_char.coins < skin.price:
+                return Response({"success": False, "error": "Not enough coins."}, status=400)
+            user_char.coins -= int(skin.price)
+            skin.is_unlocked = True
+            user_char.save()
+            skin.save()
+            return Response({"success": True, "message": "Skin unlocked!"})
+        except Exception as e:
+            return Response({"success": False, "error": "Character not found."}, status=404)

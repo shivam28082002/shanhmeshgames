@@ -1,6 +1,8 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Character, Skin, Purchase,UserCharater, Task , UserTask, UserCharater, Settings, MiningCard
+from .models import (Character, Skin, 
+                Purchase,UserCharater, Task , UserTask, UserCharater, Settings, MiningCard, HafizReading,MiningCategory,
+                Bank, BankAccount)
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -84,7 +86,31 @@ class SettingsSerializer(serializers.ModelSerializer):
 
 
 
+class MiningCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MiningCategory
+        fields = ['id', 'name', 'description']
+
 class MiningCardSerializer(serializers.ModelSerializer):
+    category = MiningCategorySerializer(read_only=True)
+
     class Meta:
         model = MiningCard
-        fields = ['id', 'category', 'title', 'value', 'is_active']
+        fields = ['id', 'category', 'title', 'value', 'is_active', 'image', 'profit_per']
+
+class HafizReadingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HafizReading
+        fields = ['id', 'title', 'arabic_text', 'translation', 'date_to_show']
+
+
+
+class BankSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Bank
+        fields = '__all__'
+
+class BankAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BankAccount
+        fields = '__all__'

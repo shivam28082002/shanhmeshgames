@@ -12,7 +12,6 @@ TELEGRAM_CHAT_ID = "6303109284"
 class SendTelegramMessageView(APIView):
     def post(self, request):
         try:
-            breakpoint()
             message = request.data.get("message")
             user_id = request.data.get("user_id")
 

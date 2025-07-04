@@ -58,13 +58,25 @@ class MiningCard(models.Model):
     category = models.ForeignKey(MiningCategory, on_delete=models.CASCADE)
     title = models.CharField(max_length=100)
     value = models.FloatField()
+    image = models.ImageField(upload_to='uploads/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    profit_per =  models.IntegerField(blank=True, null=True)    
 
 
 class UserMiningCard(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     card = models.ForeignKey(MiningCard, on_delete=models.CASCADE)
     obtained_at = models.DateTimeField(auto_now_add=True)
+
+
+class HafizReading(models.Model):
+    title = models.CharField(max_length=100)
+    arabic_text = models.TextField()
+    translation = models.TextField(blank=True)
+    date_to_show = models.DateField(unique=True)
+
+    def __str__(self):
+        return self.title
 
 
 # 3. Daily Tasks
@@ -77,6 +89,9 @@ class Task(models.Model):
     is_active = models.BooleanField(default=True)
     start_time = models.DateTimeField(blank=True, null=True)
     end_time = models.DateTimeField(blank=True, null=True)
+    reading = models.ForeignKey(HafizReading, null=True, blank=True, on_delete=models.SET_NULL)
+
+
 
     def is_available_now(self):
         now = timezone.now()
@@ -171,19 +186,7 @@ class Purchase(models.Model):
         return f'{self.user.username} purchased {self.skin.name}'
     
 
-class UserCharater(models.Model):
-    CHARACTER_CHOICES = [
-        ('fourse_aladin', 'Fourse Aladin'),
-        ('king_q', 'King Q'),
-        ('nashmieh', 'Nashmieh'),
-        ('arshine', 'Arshine'),
-    ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    character = models.CharField(max_length=20, choices=CHARACTER_CHOICES)
-
-    def __str__(self):
-        return f"{self.user.username} - {self.get_character_display()}"
 
 
 
@@ -197,7 +200,7 @@ class DailyCipher(models.Model):
 
 
 
-class UserCharater(models.Model):
+class UserCharater(models.Model): #1
     CHARACTER_CHOICES = [
         ('fourse_aladin', 'Fourse Aladin'),
         ('king_q', 'King Q'),
@@ -280,3 +283,21 @@ class UserEarnings(models.Model):
     
 
 
+
+
+class Bank(models.Model):
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=10)  
+
+    def __str__(self):
+        return self.name
+
+
+class BankAccount(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.CASCADE)
+    account_number = models.CharField(max_length=16)
+    account_holder = models.CharField(max_length=100)
+    iban = models.CharField(max_length=30)
+
+    def __str__(self):
+        return f"{self.account_holder} - {self.bank.name}"

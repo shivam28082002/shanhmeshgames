@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (RegisterView, profile_view,telegram_login_page, bot_login, claim_cipher,
                     CharacterListView, DailyTaskListView, CompleteTaskView, UserCharacterListCreateView,
-                    SettingsAPIView, MiningActionView, MiningView)
+                    SettingsAPIView, MiningActionView, MiningView, DailyHafezTaskView, complete_hafez_task,
+                    AllTasksStatusView, BootsEnegry, UnlockSkinView)
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
 from .bot_views import SendTelegramMessageView,MessageHistoryView
@@ -28,6 +29,15 @@ urlpatterns = [
     path('profit/', views.ClaimProfitView.as_view(), name='profit'),
     path('claim-cipher/<int:pk>/', claim_cipher, name='claim_cipher'),
     path('mining/', MiningView.as_view(), name='mining-list'),  # GET all mining cards
-    path('mining/<int:pk>/', MiningActionView.as_view(), name='mining'), 
+    path('mining_card/', MiningActionView.as_view(), name='mining'),
+    path('daily-hafez-task/', DailyHafezTaskView.as_view(), name='daily-hafez-task'),
+    path('complete-hafez-task/', complete_hafez_task, name='complete-hafez-task'),
+    path('task-status/', AllTasksStatusView.as_view(), name='task-status'),
+    path('boost-energy/', BootsEnegry.as_view(), name='boost-energy'),
+    path('unlock_skin/', UnlockSkinView.as_view(), name='unlock-skin'),
+
+
+
+
     
 ]

@@ -5,7 +5,11 @@ from .models import (
     TokenWallet, MiningCategory, MiningCard, UserMiningCard,
     Task, UserTask,
     MiniGame, UserMiniGameScore,
-    Airdrop, UserAirdropEntry, Character, Skin, Purchase, UserCharater, Settings, UserEarnings, DailyCipher
+    Airdrop, UserAirdropEntry, 
+    Character, Skin, Purchase, 
+    UserCharater, Settings, 
+    UserEarnings, DailyCipher,
+    HafizReading, BankAccount, Bank
 )
 
 @admin.register(UserCharater)
@@ -19,7 +23,7 @@ admin.site.register(Level)
 admin.site.register(UserProgress)
 admin.site.register(TokenWallet)
 admin.site.register(MiningCategory)
-admin.site.register(MiningCard)
+# admin.site.register(MiningCard)
 admin.site.register(UserMiningCard)
 admin.site.register(MiniGame)
 admin.site.register(UserMiniGameScore)
@@ -28,6 +32,15 @@ admin.site.register(UserAirdropEntry)
 admin.site.register(Settings)
 admin.site.register(UserEarnings)
 admin.site.register(DailyCipher)
+admin.site.register(HafizReading)
+
+@admin.register(MiningCard)
+class MiningCardAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'category', 'value', 'is_active',)
+    list_filter = ('category', 'is_active')
+    search_fields = ('title',)
+    list_editable = ('is_active',)
+    ordering = ('id',)
 
 
 
@@ -60,3 +73,8 @@ class TaskAdmin(admin.ModelAdmin):
 class UserTaskAdmin(admin.ModelAdmin):
     list_display = ['user', 'task', 'completed', 'completed_at']
     list_filter = ['completed']
+
+
+@admin.register(Bank)
+class UserBankAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code',]
