@@ -113,4 +113,8 @@ class BankSerializer(serializers.ModelSerializer):
 class BankAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = BankAccount
-        fields = '__all__'
+        fields = ['id', 'bank', 'account_number', 'account_holder', 'iban', 'comment']
+        extra_kwargs = {
+            'iban': {'required': False},
+            'comment': {'required': False},
+        }

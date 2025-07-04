@@ -2,7 +2,9 @@ from django.urls import path
 from .views import (RegisterView, profile_view,telegram_login_page, bot_login, claim_cipher,
                     CharacterListView, DailyTaskListView, CompleteTaskView, UserCharacterListCreateView,
                     SettingsAPIView, MiningActionView, MiningView, DailyHafezTaskView, complete_hafez_task,
-                    AllTasksStatusView, BootsEnegry, UnlockSkinView)
+                    AllTasksStatusView, BootsEnegry, UnlockSkinView,BankAccountDetailAPIView, BankAccountListCreateAPIView, 
+                    CreateBankAccountView
+                    )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
 from .bot_views import SendTelegramMessageView,MessageHistoryView
@@ -35,9 +37,16 @@ urlpatterns = [
     path('task-status/', AllTasksStatusView.as_view(), name='task-status'),
     path('boost-energy/', BootsEnegry.as_view(), name='boost-energy'),
     path('unlock_skin/', UnlockSkinView.as_view(), name='unlock-skin'),
+    # path('api/banks/', BankListCreateAPIView.as_view(), name='bank-list-create'),
+    # path('api/banks/<int:pk>/', BankDetailAPIView.as_view(), name='bank-detail'),
+    
+    path('bank-accounts/', BankAccountListCreateAPIView.as_view(), name='bankaccount-list-create'),
+    path('bank-accounts/<int:pk>/', BankAccountDetailAPIView.as_view(), name='bankaccount-detail'),
+    path('bank/<int:pk>/create-account/', CreateBankAccountView.as_view(), name='create-bank-account'),
+]
 
 
 
 
     
-]
+

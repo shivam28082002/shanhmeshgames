@@ -17,11 +17,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.authtoken.models import Token  
 import requests
-
+from eth_account.messages import encode_defunct
+from web3 import Web3
 
 from .serializers import (RegisterSerializer, CharacterSerializer, 
                           UserCharaterSerializer, TaskSerializer,UserCharaterSerializer,
-                          SettingsSerializer,MiningCardSerializer,HafizReadingSerializer)
+                          SettingsSerializer,MiningCardSerializer,HafizReadingSerializer,
+                          BankSerializer, BankAccountSerializer)
 from .utils import verify_telegram_auth  
 from . import models
 import random
@@ -579,3 +581,79 @@ class UnlockSkinView(APIView):
             return Response({"success": True, "message": "Skin unlocked!"})
         except Exception as e:
             return Response({"success": False, "error": "Character not found."}, status=404)
+        
+
+# ---------------- BANK ACCOUNT ----------------
+
+class BankAccountListCreateAPIView(APIView):
+    def get(self, request):
+        accounts = models.Bank.objects.all()
+        serializer = BankSerializer(accounts, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = BankSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class BankAccountDetailAPIView(APIView):
+    def get(self, request, pk):
+        account = get_object_or_404(models.BankAccount, pk=pk)
+        serializer = BankAccountSerializer(account)
+        return Response(serializer.data)
+    
+    def put(self, request, pk):
+        account = get_object_or_404(models.BankAccount, pk=pk)
+        serializer = BankAccountSerializer(account, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        account = get_object_or_404(models.BankAccount, pk=pk)
+        account.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+
+class CreateBankAccountView(APIView):
+    def post(self, request, pk):
+        # breakpoint()
+        bank = get_object_or_404(models.Bank, pk=pk)
+        data = request.data.copy()
+        data["bank"] = bank.pk 
+
+        serializer = BankAccountSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+class WalletLoginAPIView(APIView):
+    def post(self, request):
+        address = request.data.get("address")
+        signature = request.data.get("signature")
+        message = request.data.get("message")
+
+        if not address or not signature or not message:
+            return Response({"error": "Missing data"}, status=400)
+
+        message_encoded = encode_defunct(text=message)
+        try:
+            recovered_address = Web3().eth.account.recover_message(message_encoded, signature=signature)
+            if recovered_address.lower() == address.lower():
+                wallet_user, created = models.WalletUser.objects.get_or_create(wallet_address=address.lower())
+                return Response({
+                    "status": "verified",
+                    "wallet": wallet_user.wallet_address,
+                    "created": created  
+                })
+            else:
+                return Response({"error": "Signature mismatch"}, status=400)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)

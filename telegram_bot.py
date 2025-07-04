@@ -1,21 +1,16 @@
+# telegram_bot.py
 import aiohttp
-import asyncio
-from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram import Update
 
 API_BASE_URL = "https://api.shahnamehgamefi.ir/api"
-
 user_tokens = {}
-
-
-api_key = '39211ffac43f544f1e333bc532cb4c45b886f7a3'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = str(update.effective_user.id)
     username = update.effective_user.username or f"user_{telegram_id}"
     password = f"tg_{telegram_id}"
 
-    # Step 1: Try to register
     async with aiohttp.ClientSession() as session:
         reg_response = await session.post(f"{API_BASE_URL}/register/", data={
             "username": username,
@@ -30,7 +25,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Something went wrong during registration.")
             return
 
-        # Step 2: Login to get token
         login_response = await session.post(f"{API_BASE_URL}/login/", data={
             "username": username,
             "password": password
@@ -43,8 +37,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("❌ Login failed.")
 
-if __name__ == "__main__":
+async def run_bot_async():
     app = ApplicationBuilder().token("7671321115:AAG9Y1HLn1o_S2Dz6dF8e-ro238dU8KFXdQ").build()
     app.add_handler(CommandHandler("start", start))
-    print("Bot is running...")
-    app.run_polling()
+    print("Telegram bot is running...")
+    await app.run_polling()
+
+def run_bot():
+    import asyncio
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If already running (like inside Django dev server), schedule as task
+            loop.create_task(run_bot_async())
+        else:
+            loop.run_until_complete(run_bot_async())
+    except RuntimeError:
+        # In case no loop exists
+        asyncio.run(run_bot_async())

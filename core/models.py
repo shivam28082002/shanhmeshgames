@@ -286,8 +286,8 @@ class UserEarnings(models.Model):
 
 
 class Bank(models.Model):
-    name = models.CharField(max_length=100)
-    code = models.CharField(max_length=10)  
+    name = models.CharField(max_length=100,unique=True)
+    code = models.CharField(max_length=10,unique=True)  
 
     def __str__(self):
         return self.name
@@ -298,6 +298,15 @@ class BankAccount(models.Model):
     account_number = models.CharField(max_length=16)
     account_holder = models.CharField(max_length=100)
     iban = models.CharField(max_length=30)
+    comment = models.CharField(max_length=4000)
 
     def __str__(self):
         return f"{self.account_holder} - {self.bank.name}"
+    
+
+class WalletUser(models.Model):
+    wallet_address = models.CharField(max_length=42, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.wallet_address
