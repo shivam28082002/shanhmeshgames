@@ -251,7 +251,7 @@ class UserCharacterListCreateView(APIView):
 
 class SettingsAPIView(APIView):
     def get(self, request, *args, **kwargs):
-        setting = models.Settings.objects.get(id=1)
+        setting = models.Settings.objects.get(id=request.user)
         serializer = SettingsSerializer(setting)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -263,7 +263,7 @@ class SettingsAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, *args, **kwargs):
-        setting = get_object_or_404(models.Settings, id=1) 
+        setting = get_object_or_404(models.Settings, id=request.user) 
         serializer = SettingsSerializer(setting, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -276,7 +276,7 @@ class ClaimProfitView(APIView):
     # permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        earnings = models.UserEarnings.objects.get(id=1)
+        earnings = models.UserEarnings.objects.get(id=request.user)
         pending = earnings.calculate_pending_profit()
         return Response({"pending_profit": pending})
 
@@ -311,7 +311,7 @@ class MiningActionView(APIView):
     COOLDOWN_SECONDS = 30    
 
     def post(self, request):
-        player =  models.UserCharater.objects.get(id=2)
+        player =  models.UserCharater.objects.get(id=request.user)
         card_id = request.data.get("card_id")
 
         if not card_id:
@@ -375,7 +375,7 @@ class MiningView(APIView):
 
 def get_crypto_data(request):
     api_key = "39211ffac43f544f1e333bc532cb4c45b886f7a3"  
-    url = "https://your-crypto-api.com/v1/prices" 
+    url = "https://baninace-api.com/v1/prices" 
     headers = {
         "Authorization": f"Bearer {api_key}", 
         "Accept": "application/json"
@@ -400,7 +400,7 @@ class DailyHafezTaskView(APIView):
         try:
             # breakpoint()
             # user = 1
-            user = models.User.objects.get(id=1)
+            user = models.User.objects.get(id=request.user)
             today = timezone.now().date()
 
             try:
@@ -434,7 +434,7 @@ class DailyHafezTaskView(APIView):
 @api_view(['POST'])
 # @permission_classes([IsAuthenticated])
 def complete_hafez_task(request):
-    user = models.User.objects.get(id=1)
+    user = models.User.objects.get(id=request.user)
     try:
         task = models.Task.objects.get(type='read_hafez', is_active=True)
         task_reward = int(task.reward)
@@ -462,7 +462,7 @@ class JoinTelegramTaskView(APIView):
     # permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = models.User.objects.get(id=1)
+        user = models.User.objects.get(id=request.user)
         try:
             task = models.Task.objects.get(type='join_tg', is_active=True)
         except models.Task.DoesNotExist:
@@ -486,7 +486,7 @@ class AllTasksStatusView(APIView):
     def get(self, request):
         now = timezone.now()
         tasks = models.Task.objects.filter(is_active=True)
-        user = models.User.objects.get(id=1)
+        user = models.User.objects.get(id=request.user)
 
         task_list = []
         for task in tasks:
@@ -515,7 +515,7 @@ class AllTasksStatusView(APIView):
 class BootsEnegry(APIView):
     def post(self, request):
         try:
-            player = models.UserCharater.objects.get(id=2)
+            player = models.UserCharater.objects.get(id=request.user)
 
             boots_price = request.data.get('coins')
             if not boots_price:
@@ -543,7 +543,7 @@ class BootsEnegry(APIView):
 
 class CompleteWatchAdTaskView(APIView):
     def post(self, request):
-        user = models.User.objects.get(id=1)
+        user = models.User.objects.get(id=request.user)
         task = models.Task.objects.filter(type='watch_ad', is_active=True).first()
         if not task:
             return Response({'success': False, 'message': 'No ad task active'})
@@ -569,7 +569,7 @@ class UnlockSkinView(APIView):
 
         try:
             skin = models.Skin.objects.get(id=skin_id)
-            user_char = models.UserCharater.objects.get(id=2)
+            user_char = models.UserCharater.objects.get(id=request.user)
             if skin.is_unlocked:
                 return Response({"success": False, "error": "Skin already unlocked."}, status=400)
             if user_char.coins < skin.price:
